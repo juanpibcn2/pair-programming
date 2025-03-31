@@ -5,14 +5,10 @@ import java.util.*;
 public class Solution {
     private Map<String, Post> posts;
     private Map<String, Comment> comments;
-    private Map<String, Stack<Post>> postHistory;
-    private Map<String, Map<String, Stack<Comment>>> commentHistory;
 
     public Solution() {
         this.posts = new HashMap<>();
         this.comments = new HashMap<>();
-        this.postHistory = new HashMap<>();
-        this.commentHistory = new HashMap<>();
     }
 
     public boolean createPost(String postId, String content, long timestamp) {
@@ -28,7 +24,7 @@ public class Solution {
             return false;
         }
         Post post = posts.get(postId);
-        postHistory.computeIfAbsent(postId, (t) -> new Stack<>()).push(new Post(post));
+        post.history.push(new Post(post));
         post.setContent(newContent);
         return true;
     }
@@ -93,11 +89,7 @@ public class Solution {
         if (!posts.containsKey(postId) || !comments.containsKey(commentId))
             return false;
         Comment comment = comments.get(commentId);
-
-        commentHistory
-                .computeIfAbsent(postId, (t) -> new HashMap<>())
-                .computeIfAbsent(commentId, (t) -> new Stack<>())
-                .push(new Comment(comment));
+        comment.history.push(new Comment(comment));
 
         comment.setContent(newComment);
 
@@ -105,19 +97,20 @@ public class Solution {
     }
 
     public boolean rollbackPostEdit(String postId){
-        if (!postHistory.containsKey(postId)) return false;
 
-        Post original = postHistory.get(postId).pop();
+        Post post = posts.get(postId);
+        if (post.history.isEmpty()) return false;
 
-        posts.replace(postId, original);
+        posts.replace(postId, post.history.pop());
 
         return true;
     }
 
     public boolean rollbackCommentEdit(String postId, String commentId){
         if (!posts.containsKey(postId) || !comments.containsKey(commentId)) return false;
-        Comment original = commentHistory.get(postId).get(commentId).pop();
-        comments.replace(commentId, original);
+        Comment comment = comments.get(commentId);
+        if (comment.history.isEmpty()) return false;
+        comments.replace(commentId, comment.history.pop());
         return true;
     }
 
@@ -126,12 +119,14 @@ public class Solution {
         private long timestamp;
         private int likes;
         private List<String> comments;
+        private Stack<Post> history;
 
         public Post(String content, long timestamp) {
             this.content = content;
             this.timestamp = timestamp;
             this.likes = 0;
             this.comments = new ArrayList<>();
+            this.history = new Stack<>();
         }
 
         public Post(Post post){
@@ -139,6 +134,7 @@ public class Solution {
             this.timestamp = post.timestamp;
             this.likes = post.likes;
             this.comments = post.comments;
+            this.history = post.history;
         }
 
         public String getContent() {
@@ -173,15 +169,18 @@ public class Solution {
     public static class Comment {
         private String content;
         private long timestamp;
+        private Stack<Comment> history;
 
         public Comment(String content, long timestamp) {
             this.content = content;
             this.timestamp = timestamp;
+            this.history = new Stack<>();
         }
 
         public Comment(Comment comment){
             this.content = comment.content;
             this.timestamp = comment.timestamp;
+            this.history = comment.history;
         }
 
         public String getContent() {
